@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MovieDekoo.com – Book Movie Tickets Online</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head><body>
+<main class="wrap">
+ <section id="banner" class="banner" aria-live="polite"></section>
+ <section class="discover" aria-label="Featured movies">
+  <div class="section-head">
+   <div>
+    <p class="eyebrow">Trending today</p>
+    <h2>Recommended for you</h2>
+   </div>
+   <a href="#movies">View all</a>
+  </div>
+  <div id="featured" class="featured-grid"></div>
+ </section>
+ <div class="tools"><input id="q" type="search" placeholder="Search movies by name" aria-label="Search movies"><select id="lang" aria-label="Filter by language"></select><select id="sort" aria-label="Sort movies"><option value="r">Top rated</option><option value="a">A to Z</option><option value="d">Shortest first</option></select></div>
+ <section id="movies"><h2 style="margin-top:24px">Now showing</h2><div class="chips" id="chips"></div><div class="grid" id="grid"></div></section>
+</main>
+<script src="data.js?v=tmdb-posters"></script>
+<script>
+layout("home");let g="All",bi=0,bt;
+const mins=m=>{const x=/(\d+)h\s*(\d+)/.exec(m.dur);return x?+x[1]*60+ +x[2]:999};
+const top3=()=>movies().filter(m=>m.on).sort((a,b)=>(b.r||0)-(a.r||0)).slice(0,3);
+function featured(){
+ const f=movies().filter(m=>m.on).sort((a,b)=>(b.r||0)-(a.r||0)).slice(0,4);
+ $("#featured").innerHTML=f.map(m=>`<article class="feature-card" style="background:linear-gradient(180deg,#0003,#000d),url('${esc(posterSrc(m))}') center/cover,linear-gradient(135deg,${m.c[0]},${m.c[1]})">
+  <div class="feature-badge">${m.genre}</div>
+  <div class="feature-meta"><span>★ ${m.r||"New"}</span><span>${m.lang}</span></div>
+  <h3>${esc(m.title)}</h3>
+  <p>${esc(m.d||"")}</p>
+  <div class="feature-actions"><a class="btn" href="booking.html?id=${m.id}">Book</a><a class="btn g" href="movie.html?id=${m.id}">Details</a></div>
+ </article>`).join("");
+}
+function banner(){
+ const t=top3(),b=$("#banner");if(!t.length){b.style.display="none";return}
+ const m=t[bi%t.length];b.style.background=`linear-gradient(90deg,#000a,#0002),url('${esc(posterSrc(m))}') center 20%/cover,linear-gradient(120deg,${m.c[0]},${m.c[1]})`;
+ b.innerHTML=`<div class="banner-copy"><p class="stars" style="color:#ffd76a">Trending now · ★ ${m.r||"New"}</p><h1>${esc(m.title)}</h1><p>${esc(m.d||"")}</p><div class="row"><a class="btn" href="booking.html?id=${m.id}">Book tickets</a><a class="btn g" href="movie.html?id=${m.id}">Details</a></div></div>
+ <div class="banner-side"><div class="mini-card"><span>Now playing</span><strong>${m.genre}</strong><small>${m.lang} • ${m.dur}</small></div><div class="dots">${t.map((_,i)=>`<button aria-label="Show trending movie ${i+1}" class="${i==bi%t.length?"on":""}" data-b="${i}"></button>`).join("")}</div></div>`;
+}
+function spin(){clearInterval(bt);if(!matchMedia("(prefers-reduced-motion: reduce)").matches)bt=setInterval(()=>{bi++;banner()},6000)}
+$("#banner").onclick=e=>{if(e.target.dataset.b){bi=+e.target.dataset.b;banner();spin()}};
+function draw(){
+ const all=movies().filter(m=>m.on),gs=["All","♥ Watchlist",...new Set(all.map(m=>m.genre))],q=$("#q").value.trim().toLowerCase(),s=$("#sort").value,w=wish(),lg=$("#lang").value||"All",ls=["All",...new Set(all.map(m=>m.lang))];
+ $("#lang").innerHTML=ls.map(x=>`<option value="${x}" ${x==lg?"selected":""}>${x=="All"?"All languages":x}</option>`).join("");
+ $("#chips").innerHTML=gs.map(x=>`<button class="chip ${x==g?"on":""}" data-g="${x}">${x}</button>`).join("");
+ const l=all.filter(m=>(g=="All"||(g[0]=="♥"?w.includes(m.id):m.genre==g))&&m.title.toLowerCase().includes(q)&&(lg=="All"||m.lang==lg))
+  .sort((a,b)=>s=="a"?a.title.localeCompare(b.title):s=="d"?mins(a)-mins(b):(b.r||0)-(a.r||0));
+ $("#grid").innerHTML=l.length?l.map(movieCard).join(""):`<p class="empty">${g[0]=="♥"?"Your watchlist is empty. Tap ♥ on a movie to save it.":"No movies match. Try another name or genre."}</p>`;
+}
+$("#chips").onclick=e=>{if(e.target.dataset.g){g=e.target.dataset.g;draw()}};
+$("#grid").onclick=e=>{const h=e.target.closest("[data-w]");if(h){toggleWish(+h.dataset.w);draw()}};
+window.addEventListener("mdk-posters-updated",()=>{featured();banner();draw()});
+$("#q").oninput=draw;$("#sort").onchange=draw;$("#lang").onchange=draw;featured();banner();spin();draw();
+</script></body></html>

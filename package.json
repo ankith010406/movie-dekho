@@ -1,0 +1,12 @@
+{
+  "name": "moviedekoo",
+  "version": "1.0.0",
+  "description": "Movie ticket booking system static site",
+  "main": "index.html",
+  "scripts": {
+    "dev": "live-server"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

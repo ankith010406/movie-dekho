@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Bookings – MovieDekoo.com</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head><body>
+<main class="wrap" id="app" style="min-height:60vh"></main>
+<script src="data.js?v=tmdb-posters"></script>
+<script>
+layout("my");
+const app=$("#app");
+app.innerHTML=`<h1 class="t">My bookings</h1><p class="empty">Enter the email you booked with, or a booking ID.</p>
+<div class="row"><input id="k" placeholder="Email or booking ID" aria-label="Email or booking ID" style="max-width:360px"><button class="btn" id="go">Find</button></div>
+<p class="empty">Cancellation is free up to 2 hours before the show. Ticket price is refunded; the ₹${FEE} per-ticket fee is not.</p><div id="out"></div>`;
+function find(){
+ const k=$("#k").value.trim().toLowerCase();
+ if(!k)return $("#out").innerHTML="";
+ const l=bookings().filter(b=>b.email.toLowerCase()==k||b.id.toLowerCase()==k).reverse();
+ $("#out").innerHTML=l.length?l.map(b=>{
+  const th=THEATRES[b.theatre||0],hrs=(showAt(b)-Date.now())/36e5,can=b.status=="Confirmed"&&hrs>2;
+  return `<div class="ticket" style="${b.status=="Confirmed"?"":"opacity:.55"}"><div class="main"><h4>${esc(b.title)}</h4><p>${th.name}<br>${fmtDate(b.date)} · ${b.time}<br>Seats: <b>${b.seats.join(", ")}</b>${b.snacks?`<br>Snacks: ${esc(b.snacks)}`:""}<br>${esc(b.name)} · ₹${b.total} · <b>${b.status}${b.refund?` (refund ₹${b.refund})`:""}</b></p>${barcode(b.id)}
+  <div class="row noprint">${can?`<button class="btn sm" data-c="${b.id}">Cancel booking</button>`:b.status=="Confirmed"?`<span class="empty">${hrs<0?"Show has started":"Too late to cancel"}</span>`:""}</div></div>
+  <div class="stub"><span>Booking ID</span><span class="code">${b.id}</span></div></div>`}).join("")
+  :'<p class="empty" style="margin-top:20px">No bookings found. Check your email or ID.</p>';
+}
+$("#go").onclick=find;$("#k").onkeydown=e=>{if(e.key=="Enter")find()};
+$("#out").onclick=e=>{const id=e.target.dataset.c;if(!id||!confirm("Cancel booking "+id+"?"))return;
+ save("mdk_bookings",bookings().map(b=>b.id==id?{...b,status:"Cancelled",refund:b.total-FEE*b.seats.length}:b));toast("Booking cancelled. Refund initiated.");find()};
+if(localStorage.mdk_email){$("#k").value=localStorage.mdk_email;find()}
+</script></body></html>

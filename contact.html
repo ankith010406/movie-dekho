@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Help &amp; Contact – MovieDekoo.com</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head><body>
+<main class="wrap"><h1 class="t">Help &amp; contact</h1>
+<div class="two"><div>
+<h2>About MovieDekoo</h2><p class="empty">MovieDekoo.com lets you find movies, pick seats and get your ticket in a few taps.</p>
+<h2 style="margin-top:22px">Common questions</h2>
+<details><summary>How do I book a ticket?</summary><p>Open a movie, choose a date and time, tap your seats, enter your details and pay.</p></details>
+<details><summary>Can I cancel a booking?</summary><p>Yes. Go to My bookings, find your booking with your email or ID, and select Cancel.</p></details>
+<details><summary>Is the payment real?</summary><p>No. This is a college project, so payments are simulated.</p></details>
+<details><summary>How many seats can I book at once?</summary><p>Up to 8 seats per booking.</p></details></div>
+<div class="box"><h2>Send us a message</h2><div class="form"><input id="n" placeholder="Your name" aria-label="Name"><input id="e" type="email" placeholder="Email" aria-label="Email"><textarea id="t" rows="4" placeholder="How can we help?" aria-label="Message"></textarea><button class="btn" id="s">Send message</button></div><p id="r"></p></div></div></main>
+<script src="data.js?v=tmdb-posters"></script>
+<script>
+layout("help");
+$("#s").onclick=()=>{const n=$("#n").value.trim(),e=$("#e").value.trim(),t=$("#t").value.trim();
+ if(!n||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)||!t)return $("#r").innerHTML='<span class="bad">Enter your name, a valid email and a message.</span>';
+ save("mdk_msgs",[...messages(),{n,e,t,at:new Date().toLocaleString("en-IN")}]);$("#r").innerHTML='<span class="ok">Message sent. We will reply by email.</span>';["#n","#e","#t"].forEach(i=>$(i).value="")};
+</script></body></html>

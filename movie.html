@@ -1,0 +1,31 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Movie Details – MovieDekoo.com</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head><body>
+<main class="wrap" id="app" style="margin-bottom:60px"></main>
+<script src="data.js?v=tmdb-posters"></script>
+<script>
+layout("");
+const m=movies().find(x=>x.id==new URLSearchParams(location.search).get("id")),app=$("#app");
+if(!m)app.innerHTML='<h1 class="t">Movie not found</h1><p><a href="index.html">Browse all movies</a></p>';
+else{
+ const rv=()=>get("mdk_reviews",[]).filter(r=>r.mid==m.id);
+ function draw(){
+  const R=rv(),avg=R.length?(R.reduce((s,r)=>s+r.s,0)/R.length).toFixed(1):null;
+  app.innerHTML=`<div class="detail"><div class="poster big" style="background:linear-gradient(160deg,${m.c[0]},${m.c[1]})"><small>${m.rate}</small><span class="poster-title">${esc(m.title)}</span>${poster(m)}</div><div>
+  <h1 class="t" style="margin-top:0">${esc(m.title)}</h1><p class="empty">${m.genre} · ${m.lang} · ${m.dur} · ${m.rate}</p>
+  <p class="stars">★ ${m.r||"New"} critics${avg?` · ★ ${avg} from ${R.length} viewer${R.length>1?"s":""}`:""}</p>
+  <p style="margin:14px 0;max-width:60ch">${esc(m.d||"Synopsis coming soon.")}</p>
+  ${m.cast?`<h3>Cast</h3><div class="chips">${m.cast.split(",").map(c=>`<span class="chip">${esc(c.trim())}</span>`).join("")}</div>`:""}
+  <div class="row"><a class="btn" href="booking.html?id=${m.id}">Book tickets</a><a class="btn g" target="_blank" rel="noopener" href="${trailer(m.title)}">▶ Trailer</a><button class="btn g" id="wl">${wish().includes(m.id)?"♥ In watchlist":"♡ Add to watchlist"}</button></div></div></div>
+  <h2 style="margin-top:36px">Viewer reviews</h2>
+  <div class="box form" style="max-width:560px"><input id="rn" placeholder="Your name" aria-label="Your name"><select id="rs" aria-label="Rating">${[5,4,3,2,1].map(n=>`<option value="${n}">${"★".repeat(n)} (${n})</option>`).join("")}</select><textarea id="rt" rows="2" placeholder="What did you think?" aria-label="Review"></textarea><button class="btn" id="rb">Post review</button></div>
+  ${R.length?R.slice().reverse().map(r=>`<div class="box rev"><b>${esc(r.n)}</b> <span class="stars">${"★".repeat(r.s)}</span><p>${esc(r.t)}</p></div>`).join(""):'<p class="empty">No reviews yet. Be the first to review.</p>'}`;
+  $("#wl").onclick=()=>{toggleWish(m.id);draw()};
+  $("#rb").onclick=()=>{const n=$("#rn").value.trim(),t=$("#rt").value.trim();if(!n||!t)return toast("Enter your name and a short review.");
+   save("mdk_reviews",[...get("mdk_reviews",[]),{mid:m.id,n,s:+$("#rs").value,t}]);toast("Review posted");draw()};
+ }
+ draw();
+ window.addEventListener("mdk-posters-updated",draw);
+}
+</script></body></html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin – MovieDekoo.com</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head><body>
+<main class="wrap" id="app"></main>
+<script src="data.js?v=tmdb-posters"></script>
+<script>
+const PASS="admin123"; // change this password
+const app=$("#app");let tab="dash",q="";
+function login(){
+ app.innerHTML=`<div class="box" style="max-width:380px;margin:80px auto"><h2>Admin login</h2><div class="form"><input id="pw" type="password" placeholder="Password" aria-label="Password"><button class="btn" id="li">Log in</button></div><p id="er" class="bad"></p><a href="index.html">Back to site</a></div>`;
+ const go=()=>{if($("#pw").value==PASS){sessionStorage.mdkA=1;panel()}else $("#er").textContent="Wrong password. Try again."};
+ $("#li").onclick=go;$("#pw").onkeydown=e=>{if(e.key=="Enter")go()};
+}
+function panel(){
+ app.innerHTML=`<div class="row" style="justify-content:space-between;align-items:center;margin-top:20px"><a class="logo" href="index.html">Movie<b>Dekoo</b> <span>Admin</span></a><button class="btn g sm" id="out">Log out</button></div>
+ <div class="tabs">${[["dash","Dashboard"],["book","Bookings"],["mov","Movies"],["msg","Messages"]].map(t=>`<button class="chip ${t[0]==tab?"on":""}" data-t="${t[0]}">${t[1]}</button>`).join("")}</div><div id="v" style="margin-bottom:60px"></div>`;
+ $("#out").onclick=()=>{sessionStorage.removeItem("mdkA");login()};
+ document.querySelector(".tabs").onclick=e=>{if(e.target.dataset.t){tab=e.target.dataset.t;panel()}};
+ ({dash,book,mov,msg})[tab]();
+}
+function dash(){
+ const B=bookings(),ok=B.filter(b=>b.status=="Confirmed"),rev=ok.reduce((s,b)=>s+b.total,0),tk=ok.reduce((s,b)=>s+b.seats.length,0),by={};
+ ok.forEach(b=>by[b.title]=(by[b.title]||0)+b.total);const mx=Math.max(1,...Object.values(by));
+ $("#v").innerHTML=`<div class="stats"><div class="box stat"><b>₹${rev}</b><span>Revenue</span></div><div class="box stat"><b>${ok.length}</b><span>Confirmed bookings</span></div><div class="box stat"><b>${tk}</b><span>Tickets sold</span></div><div class="box stat"><b>${B.length-ok.length}</b><span>Cancelled</span></div></div>
+ <div class="box"><h2>Revenue by movie</h2><div class="bars">${Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div><span>${esc(k)}</span><i style="width:${v/mx*100}%"></i><span>₹${v}</span></div>`).join("")||'<p class="empty">No bookings yet. Book a ticket on the site or load demo data.</p>'}</div></div>
+ <div class="row"><button class="btn g sm" id="demo">Load demo bookings</button><button class="btn g sm" id="clr">Clear all bookings</button></div>`;
+ $("#demo").onclick=()=>{const ms=movies(),N=["Asha","Ravi","Sneha","Kiran","Meera","Arjun"],out=[];
+  for(let i=0;i<14;i++){const m=ms[i%ms.length],s=[ROWS[i%8]+(1+i%9),ROWS[i%8]+(2+i%9)];out.push({id:"MDK"+(100+i)+"D",movieId:m.id,title:m.title,theatre:i%4,date:dayList()[i%4],time:TIMES[i%5],seats:s,total:s.reduce((t,x)=>t+price(ROWS.indexOf(x[0]))+FEE,0),name:N[i%6],email:N[i%6].toLowerCase()+"@example.com",phone:"9876543210",method:"UPI",status:i%6==5?"Cancelled":"Confirmed",at:new Date().toISOString()})}
+  save("mdk_bookings",[...bookings(),...out]);panel()};
+ $("#clr").onclick=()=>{if(confirm("Delete ALL bookings? This cannot be undone.")){save("mdk_bookings",[]);panel()}};
+}
+function book(){
+ const l=bookings().filter(b=>(b.id+b.name+b.email+b.title).toLowerCase().includes(q)).reverse();
+ $("#v").innerHTML=`<input id="sq" placeholder="Search by ID, name, email or movie" value="${esc(q)}" aria-label="Search bookings" style="max-width:380px;margin-bottom:14px"><button class="btn g sm" id="csv" style="margin-bottom:14px">Export CSV</button><div class="box tw"><table><tr><th>ID</th><th>Movie</th><th>Theatre</th><th>Show</th><th>Seats</th><th>Customer</th><th>Amount</th><th>Status</th><th></th></tr>
+ ${l.map(b=>`<tr><td>${b.id}</td><td>${esc(b.title)}</td><td>${esc(THEATRES[b.theatre||0].name.split(",")[0])}</td><td>${fmtDate(b.date)} ${b.time}</td><td>${b.seats.join(", ")}</td><td>${esc(b.name)}<br><small class="empty">${esc(b.email)}</small></td><td>₹${b.total}</td><td class="${b.status=="Confirmed"?"ok":"bad"}">${b.status}</td><td>${b.status=="Confirmed"?`<button class="btn sm" data-c="${b.id}">Cancel</button>`:""}</td></tr>`).join("")||'<tr><td colspan="9" class="empty">No bookings found.</td></tr>'}</table></div>`;
+ $("#sq").oninput=e=>{q=e.target.value.toLowerCase();book();const s=$("#sq");s.focus();s.setSelectionRange(99,99)};
+ $("#csv").onclick=()=>{const rows=[["ID","Movie","Theatre","Date","Time","Seats","Snacks","Name","Email","Amount","Status"],...bookings().map(b=>[b.id,b.title,THEATRES[b.theatre||0].name,b.date,b.time,b.seats.join(" "),b.snacks||"",b.name,b.email,b.total,b.status])];const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(",")).join("\n")],{type:"text/csv"}));a.download="moviedekoo-bookings.csv";a.click()};
+ $("#v").onclick=e=>{const id=e.target.dataset.c;if(id&&confirm("Cancel booking "+id+"?")){save("mdk_bookings",bookings().map(b=>b.id==id?{...b,status:"Cancelled"}:b));book()}};
+}
+function mov(){
+ $("#v").innerHTML=`<div class="box tw"><table><tr><th>Title</th><th>Genre</th><th>Language</th><th>Duration</th><th>Visible</th><th></th></tr>
+ ${movies().map(m=>`<tr><td>${esc(m.title)}</td><td>${esc(m.genre)}</td><td>${esc(m.lang)}</td><td>${esc(m.dur)}</td><td>${m.on?"Yes":"Hidden"}</td><td><button class="btn g sm" data-h="${m.id}">${m.on?"Hide":"Show"}</button> <button class="btn sm" data-x="${m.id}">Delete</button></td></tr>`).join("")}</table></div>
+ <div class="box" style="margin-top:16px"><h2>Add a movie</h2><div class="form" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"><input id="t" placeholder="Title" aria-label="Title"><input id="g" placeholder="Genre" aria-label="Genre"><input id="l" placeholder="Language" aria-label="Language"><input id="d" placeholder="Duration e.g. 2h 10m" aria-label="Duration"><input id="ds" placeholder="Synopsis" aria-label="Synopsis"><input id="ca" placeholder="Cast (comma separated)" aria-label="Cast"><input id="im" placeholder="Poster image URL (optional)" aria-label="Poster URL"><select id="r" aria-label="Rating"><option>U</option><option>U/A</option><option>A</option></select></div><button class="btn" id="add">Add movie</button></div>`;
+ $("#v").onclick=e=>{const d=e.target.dataset,ms=movies();
+  if(d.h)save(KM,ms.map(m=>m.id==d.h?{...m,on:m.on?0:1}:m));
+  else if(d.x&&confirm("Delete this movie?"))save(KM,ms.filter(m=>m.id!=d.x));
+  else if(e.target.id=="add"){const t=$("#t").value.trim(),g=$("#g").value.trim(),l=$("#l").value.trim(),du=$("#d").value.trim();if(!t||!g||!l||!du)return alert("Fill in title, genre, language and duration.");
+   const h=Math.floor(Math.random()*360);save(KM,[...ms,{id:Date.now(),title:t,genre:g,lang:l,dur:du,d:$("#ds").value.trim(),cast:$("#ca").value.trim(),img:$("#im").value.trim(),rate:$("#r").value,c:[`hsl(${h},80%,60%)`,`hsl(${h},60%,20%)`],on:1}])}
+  else return;mov()};
+}
+function msg(){
+ const l=messages().slice().reverse();
+ $("#v").innerHTML=l.length?l.map(x=>`<div class="box" style="margin-bottom:10px"><b>${esc(x.n)}</b> <span class="empty">${esc(x.e)} · ${x.at}</span><p>${esc(x.t)}</p></div>`).join(""):'<p class="empty">No messages yet.</p>';
+}
+sessionStorage.mdkA?panel():login();
+</script></body></html>

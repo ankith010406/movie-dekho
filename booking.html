@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Tickets – MovieDekoo.com</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head><body>
+<main class="wrap" id="app"></main>
+<script src="data.js?v=tmdb-posters"></script>
+<script>
+layout("");
+const m=movies().find(x=>x.id==new URLSearchParams(location.search).get("id")),app=$("#app");
+if(!m)app.innerHTML='<h1 class="t">Movie not found</h1><p><a href="index.html">Browse all movies</a></p>';
+else{
+ const D=dayList(),SN=[["Popcorn (large)",180],["Popcorn + drink combo",280],["Nachos",150]];
+ let st={date:D[0],th:0,time:null,seats:new Set(),sn:[0,0,0],promo:null,bn:2},tm=null,left=0;
+ app.innerHTML=`<h1 class="t">${esc(m.title)}</h1><p class="empty">${m.genre} · ${m.lang} · ${m.dur} · ${m.rate} · <a href="movie.html?id=${m.id}">Details</a></p>
+ <div class="two"><div class="box" id="pick"></div>
+ <div class="box" id="side"><h2>Your details</h2><div class="form">
+  <input id="name" placeholder="Full name" autocomplete="name" aria-label="Full name"><input id="email" type="email" placeholder="Email" autocomplete="email" aria-label="Email">
+  <input id="phone" type="tel" placeholder="10-digit mobile" autocomplete="tel" aria-label="Mobile">
+  <select id="pm" aria-label="Payment method"><option>UPI</option><option>Credit / Debit card</option><option>Net banking</option></select></div>
+  <h3>Add snacks</h3>${SN.map((s,i)=>`<label class="sn"><span>${s[0]} <small>₹${s[1]}</small></span><select data-n="${i}" aria-label="${s[0]} quantity">${[0,1,2,3,4].map(n=>`<option>${n}</option>`).join("")}</select></label>`).join("")}
+  <div class="row" style="margin:12px 0 4px"><input id="pc" placeholder="Promo code" aria-label="Promo code" style="flex:1"><button class="btn g sm" id="ap">Apply</button></div><p id="pmsg"></p>
+  <div id="sum"></div><p class="timer" id="tm" role="timer"></p><button class="btn" id="pay" style="width:100%" disabled>Pay now</button></div></div>`;
+ const seatCost=()=>{let t=0;st.seats.forEach(s=>t+=seatPrice(ROWS.indexOf(s[0]),st.time,st.th));return t};
+ const snCost=()=>st.sn.reduce((t,n,i)=>t+n*SN[i][1],0);
+ const calc=()=>{const sub=seatCost()+snCost(),fee=FEE*st.seats.size,p=st.promo,d=Math.min(sub,p?Math.round(p.pct?sub*p.pct/100:p.flat):0);return{sub,fee,disc:d,tot:sub+fee-d}};
+ const tick=()=>{$("#tm")&&($("#tm").textContent=tm?`Seats held for ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`:"")};
+ const stop=x=>{clearInterval(tm);tm=null;if(x){st.seats.clear();draw();toast("Seat hold expired. Please pick your seats again.")}tick()};
+ const hold=()=>{if(tm||!st.seats.size)return;left=300;tm=setInterval(()=>{left--;tick();if(left<=0)stop(true)},1000)};
+ function draw(){
+  const bad=st.time?takenSeats(m.id,st.date,st.time,st.th):[];
+  $("#pick").innerHTML=`<h3>Date</h3><div class="row">${D.map(d=>`<button class="opt ${d==st.date?"on":""}" data-d="${d}">${fmtDate(d)}</button>`).join("")}</div>
+  <h3>Theatre</h3><div class="row">${THEATRES.map((t,i)=>`<button class="opt ${i==st.th?"on":""}" data-th="${i}">${t.name}<br><small>${t.fmt}</small></button>`).join("")}</div>
+  <h3>Show time</h3><div class="row">${TIMES.map(t=>`<button class="opt ${t==st.time?"on":""}" data-t="${t}" ${showAt({date:st.date,time:t})<new Date()?"disabled":""}>${t}</button>`).join("")}</div>`+
+  (st.time?`<div class="row" style="align-items:center"><select id="bn" aria-label="Number of seats" style="width:auto">${[1,2,3,4,5].map(n=>`<option ${n==st.bn?"selected":""}>${n}</option>`).join("")}</select><button class="btn g sm" id="best">Suggest best seats together</button></div>
+  <div class="screen"></div><div class="seats">${ROWS.map((r,ri)=>`<div class="sr"><i>${r}</i>`+Array.from({length:COLS},(_,c)=>{const id=r+(c+1);
+   return(c==5?'<span class="gap"></span>':"")+`<button class="seat ${st.seats.has(id)?"sel":""}" data-s="${id}" ${bad.includes(id)?"disabled":""} aria-label="Seat ${id} ₹${seatPrice(ri,st.time,st.th)}" aria-pressed="${st.seats.has(id)}"></button>`}).join("")+"</div>").join("")}</div>
+  <div class="legend"><span>Available</span><span class="s">Selected</span><span class="b">Booked</span><span>A–C ₹${seatPrice(0,st.time,st.th)} · D–F ₹${seatPrice(3,st.time,st.th)} · G–H ₹${seatPrice(6,st.time,st.th)}</span></div>`
+  :'<p class="empty">Choose a show time to see the seats.</p>');
+  const c=calc();$("#sum").innerHTML=st.seats.size?`<p>${[...st.seats].sort().join(", ")}</p><p class="empty">Seats ₹${seatCost()}${snCost()?` · Snacks ₹${snCost()}`:""} · Fee ₹${c.fee}${c.disc?` · Promo −₹${c.disc}`:""}</p><div class="total">₹${c.tot}</div>`:'<p class="empty">No seats selected</p>';
+  $("#pay").disabled=!st.seats.size;tick();
+ }
+ function best(){
+  if(!st.time)return toast("Choose a show time first.");
+  const n=st.bn,bad=takenSeats(m.id,st.date,st.time,st.th);let pick=null;
+  for(const r of [4,3,5,2,6,1,7,0]){let bd=99;
+   for(const [a,b] of [[0,4],[5,9]])for(let s=a;s+n-1<=b;s++){const ids=Array.from({length:n},(_,k)=>ROWS[r]+(s+k+1));
+    if(ids.every(x=>!bad.includes(x))){const d=Math.abs(s+(n-1)/2-4.5);if(d<bd){bd=d;pick=ids}}}
+   if(pick)break}
+  if(!pick)return toast("No block of "+n+" seats together. Try fewer seats.");
+  st.seats=new Set(pick);toast("Best seats: "+pick.join(", "));
+ }
+ $("#pick").onclick=e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.d){st.date=b.dataset.d;st.time=null;st.seats.clear()}
+  else if(b.dataset.th){st.th=+b.dataset.th;st.time=null;st.seats.clear()}
+  else if(b.dataset.t){st.time=b.dataset.t;st.seats.clear()}
+  else if(b.id=="best")best();
+  else if(b.dataset.s){const s=b.dataset.s;if(st.seats.has(s))st.seats.delete(s);else if(st.seats.size<8)st.seats.add(s);else toast("You can book up to 8 seats at a time.")}
+  else return;
+  st.seats.size?hold():stop();draw()};
+ $("#pick").onchange=e=>{if(e.target.id=="bn")st.bn=+e.target.value};
+ $("#side").onchange=e=>{const n=e.target.dataset.n;if(n!=null){st.sn[n]=+e.target.value;draw()}};
+ $("#ap").onclick=()=>{const c=$("#pc").value.trim().toUpperCase(),p=PROMOS[c];st.promo=p?{...p,c}:null;
+  $("#pmsg").innerHTML=p?`<span class="ok">${c} applied</span>`:'<span class="bad">Invalid code. Try MOVIE10, FIRST50 or FAMILY15.</span>';draw()};
+ $("#pay").onclick=()=>{
+  const n=$("#name").value.trim(),em=$("#email").value.trim(),ph=$("#phone").value.trim();
+  if(!n||!/^\S+@\S+\.\S+$/.test(em)||!/^\d{10}$/.test(ph))return toast("Enter your name, a valid email and a 10-digit mobile number.");
+  if([...st.seats].some(s=>takenSeats(m.id,st.date,st.time,st.th).includes(s))){st.seats.clear();stop();draw();return toast("Some seats were just booked. Please choose again.")}
+  const c=calc(),sn=SN.map((s,i)=>st.sn[i]?st.sn[i]+"× "+s[0]:"").filter(Boolean).join(", ");
+  const b={id:"MDK"+Math.random().toString(36).slice(2,8).toUpperCase(),movieId:m.id,title:m.title,theatre:st.th,date:st.date,time:st.time,seats:[...st.seats].sort(),
+   total:c.tot,snacks:sn,promo:st.promo?st.promo.c:"",name:n,email:em,phone:ph,method:$("#pm").value,status:"Confirmed",at:new Date().toISOString()};
+  save("mdk_bookings",[...bookings(),b]);localStorage.mdk_email=em;stop();
+  app.innerHTML=`<h1 class="t ok">Booking confirmed</h1><div class="ticket"><div class="main"><h4>${esc(m.title)}</h4><p>${THEATRES[b.theatre].name}<br>${fmtDate(b.date)} · ${b.time}<br>Seats: <b>${b.seats.join(", ")}</b>${sn?`<br>Snacks: ${esc(sn)}`:""}<br>${esc(n)} · Paid ₹${b.total}</p>${barcode(b.id)}</div>
+  <div class="stub"><span>Booking ID</span><span class="code">${b.id}</span></div></div>
+  <div class="row noprint"><button class="btn" onclick="print()">Print ticket</button><a class="btn g" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent("I booked "+m.title+" at "+THEATRES[b.theatre].name+", "+fmtDate(b.date)+" "+b.time+". Seats: "+b.seats.join(", ")+". Booking ID "+b.id)}">Share on WhatsApp</a><a class="btn g" href="mybookings.html">My bookings</a><a class="btn g" href="index.html">Book another</a></div>`};
+ draw();
+}
+</script></body></html>
